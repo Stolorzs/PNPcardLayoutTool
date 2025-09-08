@@ -3,7 +3,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader  # 加上这一行
-
+from natsort import natsorted
 from PIL import Image
 
 # 参数
@@ -11,7 +11,7 @@ DPI = 300
 CARD_W_MM, CARD_H_MM = 63, 88
 BORDER_MM = 2     # 灰边
 SPACING_MM = 1    # 卡牌间距
-SCALE_MODE = 0    # 0非等比缩放 1 - 等比缩放并裁剪（纵向多余裁顶部，横向多余居中）
+SCALE_MODE = 0    # !!!! 0非等比缩放 1 - 等比缩放并裁剪（纵向多余裁顶部，横向多余居中）!!!!
 
 def mm_to_px(mm):
     return int(mm / 25.4 * DPI)
@@ -136,7 +136,7 @@ def create_pdf(images, pdf_path):
 def batch_process(input_dir, output_pdf="cards.pdf"):
     """ 自动处理文件夹内所有图片并生成排版PDF（无磁盘中间文件） """
     files = [f for f in os.listdir(input_dir) if f.lower().endswith((".jpg", ".jpeg", ".png"))]
-    files.sort()  # 排序，保证顺序稳定
+    files = natsorted(files) # 自然排序，保证顺序稳定
 
     images = []
     for fname in files:
