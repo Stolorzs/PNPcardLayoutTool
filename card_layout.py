@@ -11,6 +11,7 @@ DPI = 300
 CARD_W_MM, CARD_H_MM = 63, 88
 BORDER_MM = 2     # 灰边
 SPACING_MM = 1    # 卡牌间距
+SCALE_MODE = 0    # 0非等比缩放 1 - 等比缩放并裁剪（纵向多余裁顶部，横向多余居中）
 
 def mm_to_px(mm):
     return int(mm / 25.4 * DPI)
@@ -18,11 +19,10 @@ def mm_to_px(mm):
 def add_gray_border(img):
     """
     给原始图片加灰边：
-    1. 等比缩放到63x88mm目标区域
-    2. 如果比例不对：
-       - 纵向多余 → 从顶部裁剪
-       - 横向多余 → 居中裁剪
-    3. 外围加2mm灰边
+    scale_mode:
+        0 - 非等比缩放，直接拉伸到目标尺寸
+        1 - 等比缩放并裁剪（纵向多余裁顶部，横向多余居中）
+    外围加2mm灰边
     """
     target_w_px = mm_to_px(CARD_W_MM)
     target_h_px = mm_to_px(CARD_H_MM)
@@ -30,40 +30,44 @@ def add_gray_border(img):
 
     img = img.convert("RGB")
     iw, ih = img.size
-    target_ratio = target_w_px / target_h_px
-    img_ratio = iw / ih
 
-    # 等比缩放，保证短边覆盖目标尺寸
-    if img_ratio > target_ratio:
-        # 图片太宽 → 按高缩放
-        new_h = target_h_px
-        new_w = int(new_h * img_ratio)
+    if SCALE_MODE == 0:
+        # 非等比缩放
+        img = img.resize((target_w_px, target_h_px), Image.LANCZOS)
     else:
-        # 图片太高 → 按宽缩放
-        new_w = target_w_px
-        new_h = int(new_w / img_ratio)
+        # 等比缩放 + 裁剪
+        target_ratio = target_w_px / target_h_px
+        img_ratio = iw / ih
 
-    img = img.resize((new_w, new_h), Image.LANCZOS)
+        # 等比缩放，保证短边覆盖目标尺寸
+        if img_ratio > target_ratio:
+            # 图片太宽 → 按高缩放
+            new_h = target_h_px
+            new_w = int(new_h * img_ratio)
+        else:
+            # 图片太高 → 按宽缩放
+            new_w = target_w_px
+            new_h = int(new_w / img_ratio)
 
-    # 裁剪
-    if new_h > target_h_px:
-        # 纵向多余 → 从顶部裁掉多余部分，保留底部
-        left = (new_w - target_w_px) // 2
-        upper = new_h - target_h_px  # 从顶部裁掉多余高度
-        right = left + target_w_px
-        lower = new_h
-    elif new_w > target_w_px:
-        # 横向多余 → 居中裁剪
-        left = (new_w - target_w_px) // 2
-        upper = (new_h - target_h_px) // 2
-        right = left + target_w_px
-        lower = upper + target_h_px
-    else:
-        # 完全匹配，无需裁剪
-        left, upper, right, lower = 0, 0, new_w, new_h
+        img = img.resize((new_w, new_h), Image.LANCZOS)
 
-    img = img.crop((left, upper, right, lower))
+        # 裁剪
+        if new_h > target_h_px:
+            # 纵向多余 → 从顶部裁掉多余部分
+            left = (new_w - target_w_px) // 2
+            upper = new_h - target_h_px
+            right = left + target_w_px
+            lower = new_h
+        elif new_w > target_w_px:
+            # 横向多余 → 居中裁剪
+            left = (new_w - target_w_px) // 2
+            upper = (new_h - target_h_px) // 2
+            right = left + target_w_px
+            lower = upper + target_h_px
+        else:
+            left, upper, right, lower = 0, 0, new_w, new_h
 
+        img = img.crop((left, upper, right, lower))
 
     # 添加灰边
     new_w = target_w_px + border_px*2
@@ -72,6 +76,7 @@ def add_gray_border(img):
     new_img.paste(img, (border_px, border_px))
 
     return new_img
+
 
 
 def create_pdf(images, pdf_path):
