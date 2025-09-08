@@ -16,19 +16,63 @@ def mm_to_px(mm):
     return int(mm / 25.4 * DPI)
 
 def add_gray_border(img):
-    """ 给原始63x88mm图加灰边，返回PIL对象 """
-    target_w = mm_to_px(CARD_W_MM)
-    target_h = mm_to_px(CARD_H_MM)
+    """
+    给原始图片加灰边：
+    1. 等比缩放到63x88mm目标区域
+    2. 如果比例不对：
+       - 纵向多余 → 从顶部裁剪
+       - 横向多余 → 居中裁剪
+    3. 外围加2mm灰边
+    """
+    target_w_px = mm_to_px(CARD_W_MM)
+    target_h_px = mm_to_px(CARD_H_MM)
     border_px = mm_to_px(BORDER_MM)
 
     img = img.convert("RGB")
-    img = img.resize((target_w, target_h), Image.LANCZOS)
+    iw, ih = img.size
+    target_ratio = target_w_px / target_h_px
+    img_ratio = iw / ih
 
-    new_w = target_w + border_px*2
-    new_h = target_h + border_px*2
+    # 等比缩放，保证短边覆盖目标尺寸
+    if img_ratio > target_ratio:
+        # 图片太宽 → 按高缩放
+        new_h = target_h_px
+        new_w = int(new_h * img_ratio)
+    else:
+        # 图片太高 → 按宽缩放
+        new_w = target_w_px
+        new_h = int(new_w / img_ratio)
+
+    img = img.resize((new_w, new_h), Image.LANCZOS)
+
+    # 裁剪
+    if new_h > target_h_px:
+        # 纵向多余 → 从顶部裁掉多余部分，保留底部
+        left = (new_w - target_w_px) // 2
+        upper = new_h - target_h_px  # 从顶部裁掉多余高度
+        right = left + target_w_px
+        lower = new_h
+    elif new_w > target_w_px:
+        # 横向多余 → 居中裁剪
+        left = (new_w - target_w_px) // 2
+        upper = (new_h - target_h_px) // 2
+        right = left + target_w_px
+        lower = upper + target_h_px
+    else:
+        # 完全匹配，无需裁剪
+        left, upper, right, lower = 0, 0, new_w, new_h
+
+    img = img.crop((left, upper, right, lower))
+
+
+    # 添加灰边
+    new_w = target_w_px + border_px*2
+    new_h = target_h_px + border_px*2
     new_img = Image.new("RGB", (new_w, new_h), (200,200,200))  # 灰色背景
     new_img.paste(img, (border_px, border_px))
+
     return new_img
+
 
 def create_pdf(images, pdf_path):
     """ 将处理后的卡牌排版到A4纸上，含四边裁剪线延伸整张A4 """
