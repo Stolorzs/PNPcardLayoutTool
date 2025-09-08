@@ -4,6 +4,8 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
+from natsort import natsorted
+
 
 # 卡牌尺寸（mm）
 CARD_W_MM = 67
@@ -80,8 +82,9 @@ def create_pdf_with_back(input_data, pdf_path):
         end = min(start + per_page, len(images))
 
         for idx, img_item in enumerate(images[start:end]):
-            col = idx % cols
+            # col = idx % cols
             row = idx // cols
+            col = cols -1 -(idx % cols) # 左右翻转
             x = margin_x + col*(card_w_pt + spacing_x)
             y = page_h_pt - margin_y - (row+1)*card_h_pt - row*spacing_y
 
@@ -109,8 +112,9 @@ def batch_process_back(input_path, pdf_path):
         create_pdf_with_back(img, pdf_path)
     elif os.path.isdir(input_path):
         image_files = [os.path.join(input_path, f) for f in os.listdir(input_path)
-                       if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-        image_files.sort()  # 按文件名排序，保证顺序
+                       if f.lower().endswith(('.png', '.jpg', '.jpeg'))] 
+        image_files = natsorted(image_files)# 按自然排序，保证顺序
+
         create_pdf_with_back(image_files, pdf_path)
     else:
         raise ValueError("输入必须是有效的图片文件或目录路径")
